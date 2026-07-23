@@ -18,6 +18,7 @@ export function useTelegramAuth() {
 
     twa.ready()
     twa.expand()
+    document.documentElement.dataset.tma = '1'
 
     const rawTgUser = twa.initDataUnsafe?.user
     setTgUser(rawTgUser ?? null)
