@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { supabase, fromRow, toRow } from './lib/supabase'
 import seedData from './data/restaurants.json'
 import FilterPanel from './components/FilterPanel'
 import RestaurantCard from './components/RestaurantCard'
@@ -6,23 +7,10 @@ import MapView from './components/MapView'
 import AddPlaceModal from './components/AddPlaceModal'
 import './App.css'
 
-const STORAGE_KEY = 'restaurants-astana'
-
-function loadRestaurants() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch {}
-  return seedData
-}
-
-function saveRestaurants(list) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
-}
-
 export default function App() {
-  const [restaurants, setRestaurants] = useState(loadRestaurants)
-  const [view, setView] = useState('cards') // 'cards' | 'map'
+  const [restaurants, setRestaurants] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [view, setView] = useState('cards')
   const [showAddModal, setShowAddModal] = useState(false)
   const [filters, setFilters] = useState({
     cuisine: '',
@@ -32,18 +20,69 @@ export default function App() {
     visited: '',
   })
 
+  // Load from Supabase on mount; seed if empty
   useEffect(() => {
-    saveRestaurants(restaurants)
-  }, [restaurants])
+    async function load() {
+      const { data, error } = await supabase
+        .from('restaurants')
+        .select('*')
+        .order('rating', { ascending: false })
 
-  function updateRestaurant(id, patch) {
+      if (error) {
+        console.error('Supabase error:', error)
+        setLoading(false)
+        return
+      }
+
+      if (data.length === 0) {
+        // First run — seed initial data
+        const rows = seedData.map(toRow)
+        const { data: inserted, error: insertError } = await supabase
+          .from('restaurants')
+          .insert(rows)
+          .select()
+
+        if (!insertError && inserted) {
+          setRestaurants(inserted.map(fromRow))
+        }
+      } else {
+        setRestaurants(data.map(fromRow))
+      }
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  async function updateRestaurant(id, patch) {
+    // Optimistic update
     setRestaurants(prev =>
       prev.map(r => (r.id === id ? { ...r, ...patch } : r))
     )
+
+    const dbPatch = {}
+    if ('myVisited' in patch) dbPatch.my_visited = patch.myVisited
+    if ('myRating' in patch) dbPatch.my_rating = patch.myRating
+
+    const { error } = await supabase
+      .from('restaurants')
+      .update(dbPatch)
+      .eq('id', id)
+
+    if (error) console.error('Update error:', error)
   }
 
-  function addRestaurant(newPlace) {
-    setRestaurants(prev => [...prev, newPlace])
+  async function addRestaurant(newPlace) {
+    const { data, error } = await supabase
+      .from('restaurants')
+      .insert([toRow(newPlace)])
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Insert error:', error)
+      return
+    }
+    setRestaurants(prev => [...prev, fromRow(data)])
   }
 
   const allCuisines = useMemo(() => {
@@ -79,21 +118,21 @@ export default function App() {
           <div className="header-title">
             <span className="header-emoji">🍽</span>
             <h1>Рестораны Астаны</h1>
-            <span className="header-count">{filtered.length} из {restaurants.length}</span>
+            {!loading && (
+              <span className="header-count">{filtered.length} из {restaurants.length}</span>
+            )}
           </div>
           <div className="header-actions">
             <div className="view-toggle">
               <button
                 className={`view-btn ${view === 'cards' ? 'active' : ''}`}
                 onClick={() => setView('cards')}
-                title="Карточки"
               >
                 ⊞ Карточки
               </button>
               <button
                 className={`view-btn ${view === 'map' ? 'active' : ''}`}
                 onClick={() => setView('map')}
-                title="Карта"
               >
                 🗺 Карта
               </button>
@@ -113,7 +152,12 @@ export default function App() {
       />
 
       <main className="main">
-        {view === 'cards' ? (
+        {loading ? (
+          <div className="loading">
+            <div className="spinner" />
+            <p>Загружаю рестораны…</p>
+          </div>
+        ) : view === 'cards' ? (
           filtered.length > 0 ? (
             <div className="grid">
               {filtered.map(r => (
