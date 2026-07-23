@@ -576,6 +576,205 @@
   font-weight: 500;
 }
 
+/* ── Admin UI ────────────────────────────────────── */
+.btn-admin {
+  position: relative;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  transition: all 0.15s;
+}
+.btn-admin:hover { border-color: var(--accent); color: var(--accent); }
+
+.btn-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 1px 5px;
+  line-height: 1.4;
+}
+
+.card-admin-actions {
+  display: flex;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.btn-admin-edit {
+  flex: 1;
+  padding: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: all 0.15s;
+}
+.btn-admin-edit:hover { border-color: var(--accent); background: var(--accent-light); }
+
+.btn-admin-delete {
+  flex: 1;
+  padding: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--danger);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: all 0.15s;
+}
+.btn-admin-delete:hover { border-color: var(--danger); background: #fef2f2; }
+
+/* Admin Panel Modal */
+.admin-panel { max-width: 560px; max-height: 85vh; display: flex; flex-direction: column; }
+
+.admin-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+}
+
+.admin-tab {
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.admin-tab.active { background: var(--accent); color: #fff; }
+.admin-tab:hover:not(.active) { color: var(--text); background: var(--bg); }
+
+.badge {
+  background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 1px 5px;
+  line-height: 1.4;
+}
+
+.admin-list {
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.admin-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.admin-item-info strong { font-size: 14px; color: var(--text); }
+
+.admin-item-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.admin-item-link {
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+}
+.admin-item-submitter {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-top: 2px;
+}
+
+.admin-item-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.btn-approve {
+  padding: 6px 12px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.btn-approve:hover { background: var(--accent-hover); }
+.btn-approve:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-reject {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  color: var(--danger);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.btn-reject:hover { border-color: var(--danger); background: #fef2f2; }
+.btn-reject:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-edit-sm {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.btn-edit-sm:hover { border-color: var(--accent); background: var(--accent-light); }
+
+.admin-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.source-approved { color: var(--accent); font-size: 11px; }
+
+.suggest-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  margin-bottom: 16px;
+}
+
 /* ── TMA (Telegram Mini App) ─────────────────────── */
 .app.tma {
   min-height: 100vh;

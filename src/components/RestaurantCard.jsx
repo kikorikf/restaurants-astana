@@ -16,11 +16,11 @@ function Stars({ rating, onChange, disabled }) {
   )
 }
 
-export default function RestaurantCard({ restaurant: r, onUpdate, loggedIn, onLoginNeeded }) {
-  const gisUrl = `https://2gis.kz/astana/firm/${r.firmId}`
+export default function RestaurantCard({ restaurant: r, onUpdate, loggedIn, onLoginNeeded, isAdmin, onEdit, onDelete }) {
+  const gisUrl = r.firmId ? `https://2gis.kz/astana/firm/${r.firmId}` : null
 
   function toggleVisited() {
-    if (!loggedIn) { onLoginNeeded(); return }
+    if (!loggedIn) { onLoginNeeded?.(); return }
     const visited = !r.myVisited
     onUpdate({ myVisited: visited, myRating: visited ? r.myRating : null })
   }
@@ -28,17 +28,17 @@ export default function RestaurantCard({ restaurant: r, onUpdate, loggedIn, onLo
   return (
     <div className={`card ${r.status === 'temporarily_closed' ? 'closed' : ''}`}>
       <div className="card-header">
-        <a className="card-name" href={gisUrl} target="_blank" rel="noreferrer">
-          {r.name}
-        </a>
-        <span className="card-rating">⭐ {r.rating}</span>
+        {gisUrl ? (
+          <a className="card-name" href={gisUrl} target="_blank" rel="noreferrer">{r.name}</a>
+        ) : (
+          <span className="card-name">{r.name}</span>
+        )}
+        <span className="card-rating">⭐ {r.rating ?? '—'}</span>
       </div>
 
       <div className="card-tags">
         <span className="tag tag-type">{r.type}</span>
-        {r.cuisine.map(c => (
-          <span key={c} className="tag">{c}</span>
-        ))}
+        {r.cuisine.map(c => <span key={c} className="tag">{c}</span>)}
       </div>
 
       <div className="card-meta">
@@ -53,9 +53,7 @@ export default function RestaurantCard({ restaurant: r, onUpdate, loggedIn, onLo
           </div>
         )}
         <div className="card-meta-row">
-          <span
-            className={`status-badge ${r.status === 'open' ? 'status-open' : 'status-closed'}`}
-          >
+          <span className={`status-badge ${r.status === 'open' ? 'status-open' : 'status-closed'}`}>
             {r.status === 'open' ? '● Открыто' : '◌ Временно закрыто'}
           </span>
         </div>
@@ -64,27 +62,32 @@ export default function RestaurantCard({ restaurant: r, onUpdate, loggedIn, onLo
       <div className="card-source">
         {r.source === 'rostislav' ? (
           <span className="source-rostislav">📋 Подборка Ростислава</span>
+        ) : r.source === 'approved' ? (
+          <span className="source-approved">✓ Предложено пользователем</span>
         ) : (
-          <span className="source-own">✦ Моя находка</span>
+          <span className="source-own">✦ Добавлено</span>
         )}
       </div>
 
       <div className="card-actions">
         <label className={`visited-toggle ${r.myVisited ? 'active' : ''}`}>
-          <input
-            type="checkbox"
-            checked={r.myVisited}
-            onChange={toggleVisited}
-          />
+          <input type="checkbox" checked={r.myVisited} onChange={toggleVisited} />
           {r.myVisited ? 'Был/а' : 'Не был/а'}
         </label>
 
-        <Stars
-          rating={r.myRating}
-          onChange={val => onUpdate({ myRating: val })}
-          disabled={!r.myVisited}
-        />
+        <Stars rating={r.myRating} onChange={val => onUpdate({ myRating: val })} disabled={!r.myVisited} />
       </div>
+
+      {isAdmin && (
+        <div className="card-admin-actions">
+          <button className="btn-admin-edit" onClick={() => onEdit(r)} title="Редактировать">
+            ✎ Ред.
+          </button>
+          <button className="btn-admin-delete" onClick={() => onDelete(r.id)} title="Удалить">
+            ✕ Удалить
+          </button>
+        </div>
+      )}
     </div>
   )
 }

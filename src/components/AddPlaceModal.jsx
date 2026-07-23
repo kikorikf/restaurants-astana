@@ -17,7 +17,6 @@ function parseFirmId(url) {
   return match ? match[1] : null
 }
 
-// Map 2GIS rubric names → our type options
 function guessType(rubrics = []) {
   const names = rubrics.map(r => (r.name || '').toLowerCase())
   if (names.some(n => n.includes('кофейн') || n.includes('coffee'))) return 'кофейня'
@@ -28,37 +27,51 @@ function guessType(rubrics = []) {
   return ''
 }
 
-const empty = { url: '', name: '', cuisine: '', type: '', avgCheck: '', address: '' }
+function emptyForm(restaurant = null) {
+  if (!restaurant) return { url: '', name: '', cuisine: '', type: '', avgCheck: '', address: '' }
+  return {
+    url: restaurant.firmId ? `https://2gis.kz/astana/firm/${restaurant.firmId}` : '',
+    name: restaurant.name ?? '',
+    cuisine: restaurant.cuisine?.[0] ?? '',
+    type: restaurant.type ?? '',
+    avgCheck: restaurant.avgCheck ? String(restaurant.avgCheck) : '',
+    address: restaurant.address ?? '',
+  }
+}
 
-export default function AddPlaceModal({ onClose, onAdd, loggedIn, onLoginNeeded }) {
-  const [form, setForm] = useState(empty)
+export default function AddPlaceModal({
+  onClose,
+  onAdd,          // admin: add directly
+  onSuggest,      // user: submit pending request
+  onEdit,         // admin: edit existing
+  editRestaurant, // restaurant object being edited (edit mode)
+  isAdmin,
+  loggedIn,
+  onLoginNeeded,
+}) {
+  const isEditMode = !!editRestaurant
+  const [form, setForm] = useState(() => emptyForm(editRestaurant))
   const [fetching, setFetching] = useState(false)
   const [fetchedOk, setFetchedOk] = useState(false)
+  const [submitted, setSubmitted] = useState(false) // user request sent
   const [error, setError] = useState('')
-  const [gisData, setGisData] = useState(null) // raw 2GIS response
+  const [gisData, setGisData] = useState(null)
   const prevFirmId = useRef(null)
 
   const firmId = parseFirmId(form.url)
 
-  // Auto-fetch from 2GIS when firmId appears
   useEffect(() => {
     if (!firmId || firmId === prevFirmId.current) return
     prevFirmId.current = firmId
-
-    if (GISKEY === 'REPLACE_WITH_API_KEY') return // key not set yet
-
     setFetching(true)
     setFetchedOk(false)
     setGisData(null)
 
-    const url = `https://catalog.api.2gis.com/3.0/items/byid?id=${firmId}&key=${GISKEY}&fields=items.point,items.address_name,items.rubrics,items.name_ex,items.reviews`
-
-    fetch(url)
+    fetch(`https://catalog.api.2gis.com/3.0/items/byid?id=${firmId}&key=${GISKEY}&fields=items.point,items.address_name,items.rubrics,items.name_ex,items.reviews`)
       .then(r => r.json())
       .then(json => {
         const item = json?.result?.items?.[0]
         if (!item) throw new Error('Место не найдено в 2ГИС')
-
         setGisData(item)
         setForm(prev => ({
           ...prev,
@@ -72,39 +85,50 @@ export default function AddPlaceModal({ onClose, onAdd, loggedIn, onLoginNeeded 
       .finally(() => setFetching(false))
   }, [firmId])
 
-  function set(key, value) {
-    setForm(prev => ({ ...prev, [key]: value }))
-    setError('')
-  }
+  function set(key, value) { setForm(prev => ({ ...prev, [key]: value })); setError('') }
 
-  function handleSubmit(e) {
-    e.preventDefault()
-    if (!form.url.trim()) { setError('Вставь ссылку на 2ГИС'); return }
-    if (!firmId) { setError('Не удалось распознать firmId из ссылки'); return }
-    if (!form.name.trim()) { setError('Введи название'); return }
-    if (!form.cuisine) { setError('Выбери кухню'); return }
-    if (!form.type) { setError('Выбери тип'); return }
-
+  function buildPlace() {
     const point = gisData?.point
-    const rating = gisData?.reviews?.general_rating ?? null
-
-    onAdd({
-      id: `own-${Date.now()}`,
+    const rating = gisData?.reviews?.general_rating ?? (isEditMode ? editRestaurant.rating : null)
+    return {
       name: form.name.trim(),
-      cuisine: [form.cuisine],
+      cuisine: form.cuisine ? [form.cuisine] : [],
       type: form.type,
       rating,
       avgCheck: form.avgCheck ? Number(form.avgCheck) : null,
       address: form.address.trim(),
-      lat: point?.lat ?? 51.163,
-      lon: point?.lon ?? 71.418,
-      firmId,
-      source: 'own',
+      lat: point?.lat ?? (isEditMode ? editRestaurant.lat : 51.163),
+      lon: point?.lon ?? (isEditMode ? editRestaurant.lon : 71.418),
+      firmId: firmId ?? (isEditMode ? editRestaurant.firmId : null),
+      source: isEditMode ? editRestaurant.source : 'own',
       status: 'open',
-      myVisited: false,
-      myRating: null,
-    })
-    onClose()
+    }
+  }
+
+  function validate() {
+    if (!isEditMode && !form.url.trim()) { setError('Вставь ссылку на 2ГИС'); return false }
+    if (!isEditMode && !firmId) { setError('Не удалось распознать firmId из ссылки'); return false }
+    if (!form.name.trim()) { setError('Введи название'); return false }
+    if (!form.cuisine) { setError('Выбери кухню'); return false }
+    if (!form.type) { setError('Выбери тип'); return false }
+    return true
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault()
+    if (!validate()) return
+    const place = buildPlace()
+
+    if (isEditMode) {
+      onEdit(editRestaurant.id, place)
+      onClose()
+    } else if (isAdmin) {
+      onAdd({ id: `own-${Date.now()}`, ...place, myVisited: false, myRating: null })
+      onClose()
+    } else {
+      onSuggest(place)
+      setSubmitted(true)
+    }
   }
 
   if (!loggedIn) {
@@ -112,31 +136,57 @@ export default function AddPlaceModal({ onClose, onAdd, loggedIn, onLoginNeeded 
       <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
         <div className="modal" style={{ maxWidth: 360, textAlign: 'center' }}>
           <div className="modal-header">
-            <span className="modal-title">Добавить место</span>
+            <span className="modal-title">Предложить место</span>
             <button className="modal-close" onClick={onClose}>×</button>
           </div>
           <p style={{ color: 'var(--text-muted)', marginBottom: 20 }}>
-            Чтобы добавлять места, нужно войти в аккаунт
+            Нужно войти через Telegram чтобы предложить место
           </p>
           <button className="btn-primary" style={{ width: '100%' }} onClick={onLoginNeeded}>
-            Войти / Зарегистрироваться
+            Войти
           </button>
         </div>
       </div>
     )
   }
 
+  if (submitted) {
+    return (
+      <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+        <div className="modal" style={{ maxWidth: 380, textAlign: 'center' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>✓</div>
+          <h2 style={{ marginBottom: 8, fontSize: 17 }}>Заявка отправлена!</h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: 20, fontSize: 14 }}>
+            Администратор проверит место и добавит его в список
+          </p>
+          <button className="btn-primary" style={{ width: '100%' }} onClick={onClose}>
+            Закрыть
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const title = isEditMode ? 'Редактировать место' : isAdmin ? 'Добавить место' : 'Предложить место'
+  const submitLabel = isEditMode ? 'Сохранить' : isAdmin ? 'Добавить' : 'Отправить заявку'
+
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="modal-header">
-          <span className="modal-title">Добавить место</span>
+          <span className="modal-title">{title}</span>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
+        {!isAdmin && !isEditMode && (
+          <p className="suggest-hint">
+            💡 Заявка отправится администратору на проверку
+          </p>
+        )}
+
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">Ссылка 2ГИС *</label>
+            <label className="form-label">Ссылка 2ГИС {isEditMode ? '' : '*'}</label>
             <div style={{ position: 'relative' }}>
               <input
                 className="form-input"
@@ -146,9 +196,7 @@ export default function AddPlaceModal({ onClose, onAdd, loggedIn, onLoginNeeded 
               />
               {fetching && <span className="fetch-spinner" />}
             </div>
-            {fetchedOk && (
-              <div className="fetch-ok">✓ Данные загружены из 2ГИС</div>
-            )}
+            {fetchedOk && <div className="fetch-ok">✓ Данные загружены из 2ГИС</div>}
             {form.url && !firmId && (
               <div className="form-hint" style={{ color: 'var(--danger)' }}>
                 Не распознана ссылка — скопируй из адресной строки 2ГИС
@@ -179,29 +227,16 @@ export default function AddPlaceModal({ onClose, onAdd, loggedIn, onLoginNeeded 
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Кухня *</label>
-              <select
-                className="form-input"
-                value={form.cuisine}
-                onChange={e => set('cuisine', e.target.value)}
-              >
+              <select className="form-input" value={form.cuisine} onChange={e => set('cuisine', e.target.value)}>
                 <option value="">Выбрать</option>
-                {CUISINE_OPTIONS.map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
+                {CUISINE_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-
             <div className="form-group">
-              <label className="form-label">Тип</label>
-              <select
-                className="form-input"
-                value={form.type}
-                onChange={e => set('type', e.target.value)}
-              >
+              <label className="form-label">Тип *</label>
+              <select className="form-input" value={form.type} onChange={e => set('type', e.target.value)}>
                 <option value="">Выбрать</option>
-                {TYPE_OPTIONS.map(t => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
+                {TYPE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
           </div>
@@ -218,18 +253,12 @@ export default function AddPlaceModal({ onClose, onAdd, loggedIn, onLoginNeeded 
             />
           </div>
 
-          {error && (
-            <div style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 8 }}>
-              {error}
-            </div>
-          )}
+          {error && <div style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 8 }}>{error}</div>}
 
           <div className="modal-actions">
-            <button type="button" className="btn-secondary" onClick={onClose}>
-              Отмена
-            </button>
+            <button type="button" className="btn-secondary" onClick={onClose}>Отмена</button>
             <button type="submit" className="btn-primary" disabled={fetching}>
-              {fetching ? 'Загружаю…' : 'Добавить'}
+              {fetching ? 'Загружаю…' : submitLabel}
             </button>
           </div>
         </form>
