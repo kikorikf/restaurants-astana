@@ -4,7 +4,7 @@ const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
@@ -39,45 +39,60 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: CORS })
 
   try {
-    const { initData } = await req.json()
+    const body = await req.json()
+    const initData: string = body.initData ?? ''
+
+    if (!initData) {
+      return new Response(JSON.stringify({ error: 'No initData' }), { status: 400, headers: { ...CORS, 'Content-Type': 'application/json' } })
+    }
+
     const validated = await validateInitData(initData)
     if (!validated) {
-      return new Response(JSON.stringify({ error: 'Invalid initData' }), { status: 401, headers: CORS })
+      return new Response(JSON.stringify({ error: 'Invalid initData (HMAC mismatch)' }), { status: 401, headers: { ...CORS, 'Content-Type': 'application/json' } })
+    }
+
+    if (!validated.user) {
+      return new Response(JSON.stringify({ error: 'No user field in initData' }), { status: 400, headers: { ...CORS, 'Content-Type': 'application/json' } })
     }
 
     const tgUser = JSON.parse(validated.user)
     const email = `tg_${tgUser.id}@tma.app`
     const password = `tgauth_${tgUser.id}_${BOT_TOKEN.slice(0, 8)}`
 
-    // Import Supabase admin client inline (no npm in Edge Functions)
     const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
     const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
       auth: { autoRefreshToken: false, persistSession: false }
     })
 
-    // Try sign in first
-    let { data: session } = await admin.auth.signInWithPassword({ email, password })
+    let { data: signInData, error: signInErr } = await admin.auth.signInWithPassword({ email, password })
 
-    if (!session?.session) {
-      // Create user then sign in
-      await admin.auth.admin.createUser({
+    if (!signInData?.session) {
+      const { error: createErr } = await admin.auth.admin.createUser({
         email, password,
         email_confirm: true,
         user_metadata: {
           telegram_id: tgUser.id,
-          first_name: tgUser.first_name,
+          first_name: tgUser.first_name ?? '',
           last_name: tgUser.last_name ?? '',
           username: tgUser.username ?? '',
         }
       })
-      const { data: newSession } = await admin.auth.signInWithPassword({ email, password })
-      session = newSession
+
+      if (createErr && !createErr.message.includes('already')) {
+        return new Response(JSON.stringify({ error: `createUser failed: ${createErr.message}` }), { status: 500, headers: { ...CORS, 'Content-Type': 'application/json' } })
+      }
+
+      const { data: newSignIn, error: newSignInErr } = await admin.auth.signInWithPassword({ email, password })
+      if (!newSignIn?.session) {
+        return new Response(JSON.stringify({ error: `signIn failed after create: ${newSignInErr?.message}` }), { status: 500, headers: { ...CORS, 'Content-Type': 'application/json' } })
+      }
+      signInData = newSignIn
     }
 
-    return new Response(JSON.stringify({ session: session?.session }), {
+    return new Response(JSON.stringify({ session: signInData.session }), {
       headers: { ...CORS, 'Content-Type': 'application/json' }
     })
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: CORS })
+    return new Response(JSON.stringify({ error: `Exception: ${String(e)}` }), { status: 500, headers: { ...CORS, 'Content-Type': 'application/json' } })
   }
 })
