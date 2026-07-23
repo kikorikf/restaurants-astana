@@ -96,6 +96,52 @@
   background: var(--accent-hover);
 }
 
+.btn-login {
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  transition: all 0.15s;
+}
+
+.btn-login:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+}
+
+.user-email {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-logout {
+  font-size: 16px;
+  color: var(--text-muted);
+  transition: color 0.15s;
+  line-height: 1;
+}
+
+.btn-logout:hover {
+  color: var(--danger);
+}
+
 /* ── Filters ─────────────────────────────────────── */
 .filters {
   background: var(--surface);

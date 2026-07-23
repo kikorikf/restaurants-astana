@@ -16,10 +16,11 @@ function Stars({ rating, onChange, disabled }) {
   )
 }
 
-export default function RestaurantCard({ restaurant: r, onUpdate }) {
+export default function RestaurantCard({ restaurant: r, onUpdate, loggedIn, onLoginNeeded }) {
   const gisUrl = `https://2gis.kz/astana/firm/${r.firmId}`
 
   function toggleVisited() {
+    if (!loggedIn) { onLoginNeeded(); return }
     const visited = !r.myVisited
     onUpdate({ myVisited: visited, myRating: visited ? r.myRating : null })
   }

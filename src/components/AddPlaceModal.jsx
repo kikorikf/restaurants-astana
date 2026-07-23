@@ -30,7 +30,7 @@ function guessType(rubrics = []) {
 
 const empty = { url: '', name: '', cuisine: '', type: '', avgCheck: '', address: '' }
 
-export default function AddPlaceModal({ onClose, onAdd }) {
+export default function AddPlaceModal({ onClose, onAdd, loggedIn, onLoginNeeded }) {
   const [form, setForm] = useState(empty)
   const [fetching, setFetching] = useState(false)
   const [fetchedOk, setFetchedOk] = useState(false)
@@ -105,6 +105,25 @@ export default function AddPlaceModal({ onClose, onAdd }) {
       myRating: null,
     })
     onClose()
+  }
+
+  if (!loggedIn) {
+    return (
+      <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+        <div className="modal" style={{ maxWidth: 360, textAlign: 'center' }}>
+          <div className="modal-header">
+            <span className="modal-title">Добавить место</span>
+            <button className="modal-close" onClick={onClose}>×</button>
+          </div>
+          <p style={{ color: 'var(--text-muted)', marginBottom: 20 }}>
+            Чтобы добавлять места, нужно войти в аккаунт
+          </p>
+          <button className="btn-primary" style={{ width: '100%' }} onClick={onLoginNeeded}>
+            Войти / Зарегистрироваться
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
