@@ -576,6 +576,24 @@
   font-weight: 500;
 }
 
+/* ── TMA (Telegram Mini App) ─────────────────────── */
+.app.tma {
+  background: var(--tg-theme-bg-color, var(--bg));
+  color: var(--tg-theme-text-color, var(--text));
+  min-height: 100vh;
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+
+.app.tma .header {
+  background: var(--tg-theme-secondary-bg-color, var(--surface));
+  border-color: transparent;
+  padding-top: max(14px, env(safe-area-inset-top, 0px));
+}
+
+.app.tma .card {
+  background: var(--tg-theme-secondary-bg-color, var(--surface));
+}
+
 /* ── Responsive ──────────────────────────────────── */
 @media (max-width: 640px) {
   .header,

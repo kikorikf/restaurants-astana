@@ -76,7 +76,7 @@ export default function RestaurantCard({ restaurant: r, onUpdate, loggedIn, onLo
             checked={r.myVisited}
             onChange={toggleVisited}
           />
-          {r.myVisited ? 'Была' : 'Не была'}
+          {r.myVisited ? 'Был/а' : 'Не был/а'}
         </label>
 
         <Stars
